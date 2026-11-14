@@ -12,3 +12,48 @@ var UsuarioInsert string
 
 //go:embed usuarios/select_by_email.sql
 var UsuarioSelectByEmail string
+
+// ---------- categorias ----------
+
+//go:embed categorias/select_all.sql
+var CategoriaSelectAll string
+
+//go:embed categorias/select_by_id.sql
+var CategoriaSelectByID string
+
+//go:embed categorias/select_produtos.sql
+var CategoriaSelectProdutos string
+
+//go:embed categorias/insert.sql
+var CategoriaInsert string
+
+//go:embed categorias/update.sql
+var CategoriaUpdate string
+
+//go:embed categorias/delete.sql
+var CategoriaDelete string
+
+// ---------- produtos ----------
+
+//go:embed produtos/select_all.sql
+var ProdutoSelectAll string
+
+//go:embed produtos/select_by_id.sql
+var ProdutoSelectByID string
+
+//go:embed produtos/select_saldo_for_update.sql
+var ProdutoSelectSaldoForUpdate string
+
+//go:embed produtos/insert.sql
+var ProdutoInsert string
+
+//go:embed produtos/update.sql
+var ProdutoUpdate string
+
+//go:embed produtos/delete.sql
+var ProdutoDelete string
+
+// ---------- movimentacoes_estoque ----------
+
+//go:embed movimentacoes/insert.sql
+var MovimentacaoInsert string

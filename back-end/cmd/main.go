@@ -37,12 +37,18 @@ func main() {
 
 	// Repositórios (adaptadores de saída)
 	userRepo := repositories.NewUserRepository(db)
+	categoryRepo := repositories.NewCategoryRepository(db)
+	productRepo := repositories.NewProductRepository(db)
 
 	// Services (núcleo / regras de negócio)
 	userService := services.NewUserService(userRepo)
+	categoryService := services.NewCategoryService(categoryRepo)
+	productService := services.NewProductService(productRepo)
 
 	// Handlers (adaptadores de entrada)
 	userHandler := handlers.NewUserHandler(userService, appLogger)
+	categoryHandler := handlers.NewCategoryHandler(categoryService, appLogger)
+	productHandler := handlers.NewProductHandler(productService, appLogger)
 
 	// Roteador
 	mux := http.NewServeMux()
@@ -51,6 +57,20 @@ func main() {
 	mux.HandleFunc("POST /api/users", userHandler.Create)
 	mux.HandleFunc("POST /api/users/login", userHandler.Login)
 	mux.HandleFunc("POST /api/users/logout", userHandler.Logout)
+
+	// Categorias
+	mux.HandleFunc("GET /api/categories", categoryHandler.List)
+	mux.HandleFunc("POST /api/categories", categoryHandler.Create)
+	mux.HandleFunc("GET /api/categories/{id}/products", categoryHandler.Products)
+	mux.HandleFunc("PUT /api/categories/{id}", categoryHandler.Update)
+	mux.HandleFunc("DELETE /api/categories/{id}", categoryHandler.Delete)
+
+	// Produtos
+	mux.HandleFunc("GET /api/products", productHandler.List)
+	mux.HandleFunc("POST /api/products", productHandler.Create)
+	mux.HandleFunc("GET /api/products/{id}", productHandler.Get)
+	mux.HandleFunc("PUT /api/products/{id}", productHandler.Update)
+	mux.HandleFunc("DELETE /api/products/{id}", productHandler.Delete)
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 	appLogger.Info("servidor HTTP iniciado", "addr", addr)
