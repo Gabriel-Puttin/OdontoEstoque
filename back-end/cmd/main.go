@@ -49,6 +49,8 @@ func main() {
 
 	// Usuários
 	mux.HandleFunc("POST /api/users", userHandler.Create)
+	mux.HandleFunc("POST /api/users/login", userHandler.Login)
+	mux.HandleFunc("POST /api/users/logout", userHandler.Logout)
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 	appLogger.Info("servidor HTTP iniciado", "addr", addr)

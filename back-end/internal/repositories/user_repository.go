@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -43,6 +44,22 @@ func (r *UserRepository) Create(ctx context.Context, nome, email, senhaHash stri
 			}
 		}
 		return nil, fmt.Errorf("user repository: create: %w", err)
+	}
+	return &u, nil
+}
+
+// FindByEmail executa queries/usuarios/select_by_email.sql.
+// Retorna models.ErrUserNotFound quando não há linha.
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	var u models.User
+	err := r.db.QueryRow(ctx, queries.UsuarioSelectByEmail, email).Scan(
+		&u.ID, &u.Nome, &u.Email, &u.SenhaHash, &u.IdiomaCodigo, &u.CriadoEm, &u.AtualizadoEm,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, models.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("user repository: find by email: %w", err)
 	}
 	return &u, nil
 }

@@ -9,3 +9,6 @@ import _ "embed"
 
 //go:embed usuarios/insert.sql
 var UsuarioInsert string
+
+//go:embed usuarios/select_by_email.sql
+var UsuarioSelectByEmail string

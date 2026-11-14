@@ -19,7 +19,6 @@ func NewUserHandler(service *services.UserService, logger *slog.Logger) *UserHan
 	return &UserHandler{service: service, logger: logger}
 }
 
-// Create trata POST /api/v1/users.
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 
@@ -49,6 +48,33 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, user)
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
+
+	var req models.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido", nil)
+		return
+	}
+
+	user, err := h.service.Login(r.Context(), req)
+	if err != nil {
+		if errors.Is(err, models.ErrInvalidCredentials) {
+			writeError(w, http.StatusForbidden, err.Error(), nil)
+			return
+		}
+		h.logger.Error("falha no login", "error", err)
+		writeError(w, http.StatusInternalServerError, "erro interno", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, models.LoginResponse{Nome: user.Nome})
+}
+
+func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"message": "logout realizado"})
 }
 
 // ---------- helpers de resposta ----------

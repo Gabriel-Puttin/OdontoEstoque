@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
@@ -12,11 +13,12 @@ import (
 	"odontoestoque/internal/models"
 )
 
-// UserRepository é a porta (port) que o serviço precisa. Qualquer adaptador
-// que implemente esse contrato (Postgres, mock de teste…) pode ser plugado.
 type UserRepository interface {
 	Create(ctx context.Context, nome, email, senhaHash string, idioma *string) (*models.User, error)
+	FindByEmail(ctx context.Context, email string) (*models.User, error)
 }
+
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("senha-inexistente"), bcrypt.DefaultCost)
 
 type UserService struct {
 	repo UserRepository
@@ -26,7 +28,6 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-// Create valida os dados, gera o hash da senha e persiste o usuário.
 func (s *UserService) Create(ctx context.Context, req models.CreateUserRequest) (*models.User, error) {
 	nome := strings.TrimSpace(req.Nome)
 	email := strings.ToLower(strings.TrimSpace(req.Email))
@@ -58,4 +59,25 @@ func (s *UserService) Create(ctx context.Context, req models.CreateUserRequest) 
 	}
 
 	return s.repo.Create(ctx, nome, email, string(hash), req.IdiomaCodigo)
+}
+
+func (s *UserService) Login(ctx context.Context, req models.LoginRequest) (*models.User, error) {
+	email := strings.TrimSpace(req.Email)
+	if email == "" || req.Senha == "" {
+		return nil, models.ErrInvalidCredentials
+	}
+
+	user, err := s.repo.FindByEmail(ctx, email)
+	if errors.Is(err, models.ErrUserNotFound) {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Senha))
+		return nil, models.ErrInvalidCredentials
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.SenhaHash), []byte(req.Senha)); err != nil {
+		return nil, models.ErrInvalidCredentials
+	}
+	return user, nil
 }

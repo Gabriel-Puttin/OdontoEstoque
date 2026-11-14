@@ -25,10 +25,23 @@ type CreateUserRequest struct {
 	IdiomaCodigo   *string `json:"idioma_codigo,omitempty"`
 }
 
+// LoginRequest é o corpo do POST /api/users/login.
+type LoginRequest struct {
+	Email string `json:"email"`
+	Senha string `json:"senha"`
+}
+
+// LoginResponse é devolvido quando o login dá certo (protótipo: sem token).
+type LoginResponse struct {
+	Nome string `json:"nome"`
+}
+
 // Erros de domínio — o handler traduz cada um para um status HTTP.
 var (
 	ErrEmailAlreadyExists = errors.New("e-mail já cadastrado")
 	ErrInvalidLanguage    = errors.New("idioma inválido")
+	ErrUserNotFound       = errors.New("usuário não encontrado")
+	ErrInvalidCredentials = errors.New("E-mail ou senha inválidos. Confira seus dados e tente novamente.")
 )
 
 // ValidationError carrega mensagens de validação por campo.
