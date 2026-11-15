@@ -57,3 +57,13 @@ var ProdutoDelete string
 
 //go:embed movimentacoes/insert.sql
 var MovimentacaoInsert string
+
+// ---------- idiomas ----------
+
+//go:embed idiomas/select_all.sql
+var IdiomaSelectAll string
+
+// ---------- unidades_medida ----------
+
+//go:embed unidades_medida/select_all.sql
+var UnidadeMedidaSelectAll string
