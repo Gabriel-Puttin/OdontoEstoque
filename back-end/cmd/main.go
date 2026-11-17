@@ -15,6 +15,7 @@ import (
 	"odontoestoque/internal/repositories"
 	"odontoestoque/internal/services"
 	"odontoestoque/pkg/logger"
+	"odontoestoque/internal/middleware"
 )
 
 func main() {
@@ -87,7 +88,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: middleware.CORS(mux),
 	}
 
 	if err := server.ListenAndServe(); err != nil {
