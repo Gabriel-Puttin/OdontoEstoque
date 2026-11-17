@@ -6,5 +6,6 @@ SELECT  c.id,
         c.atualizado_em
 FROM categorias c
 LEFT JOIN produtos p ON p.categoria_id = c.id AND p.excluido_em IS NULL
+WHERE c.excluido_em IS NULL
 GROUP BY c.id
 ORDER BY c.nome;
