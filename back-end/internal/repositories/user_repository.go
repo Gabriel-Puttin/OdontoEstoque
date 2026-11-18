@@ -34,18 +34,37 @@ func (r *UserRepository) Create(ctx context.Context, nome, email, senhaHash stri
 		&u.ID, &u.Nome, &u.Email, &u.IdiomaCodigo, &u.CriadoEm, &u.AtualizadoEm,
 	)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			switch {
-			case pgErr.Code == pgUniqueViolation && pgErr.ConstraintName == "uq_usuarios_email":
-				return nil, models.ErrEmailAlreadyExists
-			case pgErr.Code == pgForeignKeyViolation:
-				return nil, models.ErrInvalidLanguage
-			}
-		}
-		return nil, fmt.Errorf("user repository: create: %w", err)
+		return nil, fmt.Errorf("user repository: create: %w", translateUserErr(err))
 	}
 	return &u, nil
+}
+
+// Update executa queries/usuarios/update.sql e devolve o usuário atualizado.
+func (r *UserRepository) Update(ctx context.Context, id int64, nome, email, idioma string) (*models.User, error) {
+	var u models.User
+	err := r.db.QueryRow(ctx, queries.UsuarioUpdate, id, nome, email, idioma).Scan(
+		&u.ID, &u.Nome, &u.Email, &u.IdiomaCodigo, &u.CriadoEm, &u.AtualizadoEm,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("user repository: update: %w", translateUserErr(err))
+	}
+	return &u, nil
+}
+
+func translateUserErr(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return models.ErrUserNotFound
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch {
+		case pgErr.Code == pgUniqueViolation && pgErr.ConstraintName == "uq_usuarios_email":
+			return models.ErrEmailAlreadyExists
+		case pgErr.Code == pgForeignKeyViolation:
+			return models.ErrInvalidLanguage
+		}
+	}
+	return err
 }
 
 // FindByEmail executa queries/usuarios/select_by_email.sql.

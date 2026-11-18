@@ -106,6 +106,7 @@ Erros de validação trazem também o detalhe por campo:
 | `POST` | `/api/users` | Cadastrar usuário |
 | `POST` | `/api/users/login` | Login |
 | `POST` | `/api/users/logout` | Logout |
+| `PUT` | `/api/users/{id}` | Atualizar usuário |
 | `GET` | `/api/categories` | Listar categorias |
 | `POST` | `/api/categories` | Cadastrar categoria |
 | `GET` | `/api/categories/{id}/products` | Listar produtos de uma categoria |
@@ -172,7 +173,7 @@ Erros: `409` e-mail já cadastrado · `422` campos inválidos ou `idioma_codigo`
 
 #### `POST /api/users/login` — Login
 
-Não gera token: apenas confirma as credenciais e devolve o nome do usuário.
+Não gera token: apenas confirma as credenciais e devolve os dados básicos do usuário. Guarde o `id` no front para usar em `PUT /api/users/{id}`.
 
 Requisição:
 
@@ -186,7 +187,12 @@ Requisição:
 Resposta `200`:
 
 ```json
-{ "nome": "Marina Costa" }
+{
+  "id": 42,
+  "nome": "Marina Costa",
+  "email": "marina.costa@clinicasorriso.com",
+  "idioma_codigo": "pt-BR"
+}
 ```
 
 Resposta `403` (e-mail inexistente ou senha errada — a mensagem é a mesma nos dois casos):
@@ -204,6 +210,41 @@ Resposta `200`:
 ```json
 { "message": "logout realizado" }
 ```
+
+#### `PUT /api/users/{id}` — Atualizar usuário
+
+Altera nome, e-mail e idioma. A senha não muda por esta rota (enviar `senha` retorna `400`). Todos os campos são obrigatórios.
+
+| Campo | Tipo | Obrigatório | Regra |
+| :--- | :--- | :--- | :--- |
+| `nome` | string | Sim | Até 120 caracteres |
+| `email` | string | Sim | E-mail válido, único (sem diferenciar maiúsculas). Salvo em minúsculas |
+| `idioma_codigo` | string | Sim | Código de um idioma existente |
+
+Requisição:
+
+```json
+{
+  "nome": "Marina Costa Ribeiro",
+  "email": "marina.ribeiro@clinicasorriso.com",
+  "idioma_codigo": "es-ES"
+}
+```
+
+Resposta `200`:
+
+```json
+{
+  "id": 42,
+  "nome": "Marina Costa Ribeiro",
+  "email": "marina.ribeiro@clinicasorriso.com",
+  "idioma_codigo": "es-ES",
+  "criado_em": "2026-10-03T09:15:22.481207-03:00",
+  "atualizado_em": "2026-10-20T18:02:47.330415-03:00"
+}
+```
+
+Erros: `400` id inválido · `404` usuário não encontrado · `409` e-mail já cadastrado por outro usuário · `422` campos inválidos ou `idioma_codigo` inexistente.
 
 ---
 

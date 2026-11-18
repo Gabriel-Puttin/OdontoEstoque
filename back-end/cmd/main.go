@@ -12,10 +12,10 @@ import (
 	"odontoestoque/config"
 	"odontoestoque/infra/database"
 	"odontoestoque/internal/handlers"
+	"odontoestoque/internal/middleware"
 	"odontoestoque/internal/repositories"
 	"odontoestoque/internal/services"
 	"odontoestoque/pkg/logger"
-	"odontoestoque/internal/middleware"
 )
 
 func main() {
@@ -64,6 +64,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", userHandler.Create)
 	mux.HandleFunc("POST /api/users/login", userHandler.Login)
 	mux.HandleFunc("POST /api/users/logout", userHandler.Logout)
+	mux.HandleFunc("PUT /api/users/{id}", userHandler.Update)
 
 	// Categorias
 	mux.HandleFunc("GET /api/categories", categoryHandler.List)

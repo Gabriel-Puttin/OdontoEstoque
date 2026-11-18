@@ -31,9 +31,20 @@ type LoginRequest struct {
 	Senha string `json:"senha"`
 }
 
+// UpdateUserRequest é o corpo do PUT /api/users/{id}.
+type UpdateUserRequest struct {
+	Nome         string `json:"nome"`
+	Email        string `json:"email"`
+	IdiomaCodigo string `json:"idioma_codigo"`
+}
+
 // LoginResponse é devolvido quando o login dá certo (protótipo: sem token).
+// O id permite ao front chamar PUT /api/users/{id}.
 type LoginResponse struct {
-	Nome string `json:"nome"`
+	ID           int64  `json:"id"`
+	Nome         string `json:"nome"`
+	Email        string `json:"email"`
+	IdiomaCodigo string `json:"idioma_codigo"`
 }
 
 // Erros de domínio — o handler traduz cada um para um status HTTP.

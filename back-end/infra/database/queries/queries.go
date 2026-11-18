@@ -13,6 +13,9 @@ var UsuarioInsert string
 //go:embed usuarios/select_by_email.sql
 var UsuarioSelectByEmail string
 
+//go:embed usuarios/update.sql
+var UsuarioUpdate string
+
 // ---------- categorias ----------
 
 //go:embed categorias/select_all.sql
