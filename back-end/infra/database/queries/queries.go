@@ -36,6 +36,9 @@ var CategoriaUpdate string
 //go:embed categorias/delete.sql
 var CategoriaDelete string
 
+//go:embed categorias/lock_ativa.sql
+var CategoriaLockAtiva string
+
 // ---------- produtos ----------
 
 //go:embed produtos/select_all.sql

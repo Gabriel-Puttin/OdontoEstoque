@@ -39,10 +39,13 @@ CREATE TABLE categorias (
     id             smallint     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome           varchar(80)  NOT NULL CHECK (btrim(nome) <> ''),
     criado_em      timestamptz  NOT NULL DEFAULT now(),
-    atualizado_em  timestamptz  NOT NULL DEFAULT now()
+    atualizado_em  timestamptz  NOT NULL DEFAULT now(),
+    excluido_em    timestamptz                      -- exclusão lógica; NULL = ativa
 );
-CREATE UNIQUE INDEX uq_categorias_nome ON categorias (lower(nome));
+-- Único só entre categorias ativas: o nome de uma categoria excluída pode ser reutilizado
+CREATE UNIQUE INDEX uq_categorias_nome ON categorias (lower(nome)) WHERE excluido_em IS NULL;
 COMMENT ON TABLE categorias IS 'Categorias de produtos. A contagem de itens por categoria é calculada (vw_categorias_itens).';
+COMMENT ON COLUMN categorias.excluido_em IS 'Preenchido ao excluir a categoria (só permitido sem produtos ativos); NULL = ativa.';
 CREATE TRIGGER trg_categorias_atualizado_em BEFORE UPDATE ON categorias
     FOR EACH ROW EXECUTE FUNCTION fn_set_atualizado_em();
 
@@ -259,6 +262,7 @@ CREATE VIEW vw_categorias_itens AS
 SELECT  c.id, c.nome, count(p.id) AS itens
 FROM categorias c
 LEFT JOIN produtos p ON p.categoria_id = c.id AND p.excluido_em IS NULL
+WHERE c.excluido_em IS NULL
 GROUP BY c.id, c.nome;
 COMMENT ON VIEW vw_categorias_itens IS 'Tela Categorias: "N itens" por categoria.';
 
@@ -287,5 +291,114 @@ INSERT INTO categorias (nome) VALUES
     ('Anestésicos'), ('Materiais restauradores e preventivos'), ('Instrumentos rotatórios'),
     ('Higiene e itens para o paciente')
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------
+-- Usuários de demonstração (senha_hash = bcrypt, custo 10)
+--   Ana  -> ana@clinica.com  / 12345678
+--   João -> joão@clinica.com / 123456789
+-- ---------------------------------------------------------------------
+INSERT INTO usuarios (nome, email, senha_hash) VALUES
+    ('Ana',  'ana@clinica.com',  '$2a$10$I0jhBvfh55Xcma.wIUS9ru0UwuHaf/NsNTPSvMjbAa/orXjqIvkGe'),
+    ('João', 'joão@clinica.com', '$2a$10$C/hm50F1uY81JNLtT7uwyu3.3nnRf8RgEXr28.XJw8e5nqKM1iXt6')
+ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------
+-- Produtos de demonstração
+-- O trigger fn_produtos_regras exige que o produto nasça com saldo 0. Por isso:
+--   1. os produtos são inseridos com quantidade_atual = 0;
+--   2. o saldo inicial entra como movimentação de 'entrada' (Ana, há 15 dias);
+--   3. algumas 'saidas' (João/Ana) populam a tela Histórico.
+-- validade_dias = dias a partir da execução do script (negativo = já vencido).
+-- ---------------------------------------------------------------------
+CREATE TEMP TABLE seed_produtos (
+    categoria      varchar(80),
+    tipo           varchar(30),
+    unidade        varchar(30),
+    nome           varchar(120),
+    variacao       varchar(40),
+    estoque_minimo integer,
+    validade_dias  integer,
+    quantidade     integer
+) ON COMMIT DROP;
+
+INSERT INTO seed_produtos VALUES
+    -- Biossegurança e EPI
+    ('Biossegurança e EPI', 'DESCARTAVEL_VARIACAO', 'caixa',   'Luvas de procedimento',              'P',            5,  NULL,  8),
+    ('Biossegurança e EPI', 'DESCARTAVEL_VARIACAO', 'caixa',   'Luvas de procedimento',              'M',            8,  NULL, 12),
+    ('Biossegurança e EPI', 'DESCARTAVEL_VARIACAO', 'caixa',   'Luvas de procedimento',              'G',            5,  NULL,  2),
+    ('Biossegurança e EPI', 'DESCARTAVEL_SIMPLES',  'caixa',   'Máscara descartável tripla',         NULL,           4,  NULL, 10),
+    ('Biossegurança e EPI', 'DESCARTAVEL_SIMPLES',  'pacote',  'Gorro descartável',                  NULL,           3,  NULL,  0),
+    ('Biossegurança e EPI', 'DURAVEL',              'unidade', 'Óculos de proteção',                 NULL,           2,  NULL,  4),
+    -- Esterilização
+    ('Esterilização', 'DESCARTAVEL_VARIACAO', 'caixa',   'Envelope para autoclave',            '90 x 260 mm',  3,  NULL,  6),
+    ('Esterilização', 'DESCARTAVEL_VARIACAO', 'caixa',   'Envelope para autoclave',            '200 x 400 mm', 2,  NULL,  1),
+    ('Esterilização', 'PERECIVEL',            'caixa',   'Indicador biológico',                NULL,           1,   200,  2),
+    ('Esterilização', 'PERECIVEL',            'unidade', 'Detergente enzimático 1 L',          NULL,           2,   365,  3),
+    ('Esterilização', 'DESCARTAVEL_SIMPLES',  'unidade', 'Fita para autoclave',                NULL,           3,  NULL,  5),
+    -- Descartáveis do atendimento
+    ('Descartáveis do atendimento', 'DESCARTAVEL_SIMPLES', 'pacote', 'Gaze estéril',              NULL, 5, NULL, 2),
+    ('Descartáveis do atendimento', 'DESCARTAVEL_SIMPLES', 'pacote', 'Sugador descartável',       NULL, 4, NULL, 9),
+    ('Descartáveis do atendimento', 'DESCARTAVEL_SIMPLES', 'pacote', 'Babador descartável',       NULL, 3, NULL, 6),
+    ('Descartáveis do atendimento', 'DESCARTAVEL_SIMPLES', 'pacote', 'Rolete de algodão',         NULL, 4, NULL, 1),
+    ('Descartáveis do atendimento', 'DESCARTAVEL_SIMPLES', 'pacote', 'Copo descartável 180 ml',   NULL, 2, NULL, 5),
+    -- Moldagem
+    ('Moldagem', 'PERECIVEL', 'pacote',  'Alginato',                    NULL, 4,  150,  3),
+    ('Moldagem', 'PERECIVEL', 'caixa',   'Silicone de condensação',     NULL, 1,  240,  2),
+    ('Moldagem', 'PERECIVEL', 'pacote',  'Gesso pedra tipo IV',         NULL, 2,  300,  4),
+    ('Moldagem', 'DURAVEL',   'unidade', 'Moldeira metálica perfurada', NULL, 6, NULL, 10),
+    -- Anestésicos
+    ('Anestésicos', 'PERECIVEL', 'caixa',   'Lidocaína 2% com epinefrina',        NULL, 3, 400, 6),
+    ('Anestésicos', 'PERECIVEL', 'caixa',   'Mepivacaína 3% sem vasoconstritor',  NULL, 2,  25, 3),
+    ('Anestésicos', 'PERECIVEL', 'caixa',   'Articaína 4% com epinefrina',        NULL, 2, 330, 1),
+    ('Anestésicos', 'PERECIVEL', 'unidade', 'Anestésico tópico benzocaína 20%',   NULL, 2, -10, 2),
+    -- Materiais restauradores e preventivos
+    ('Materiais restauradores e preventivos', 'PERECIVEL_VARIACAO', 'tubo',    'Resina composta',    'A2', 2, 270, 3),
+    ('Materiais restauradores e preventivos', 'PERECIVEL_VARIACAO', 'tubo',    'Resina composta',    'A3', 2, 270, 4),
+    ('Materiais restauradores e preventivos', 'PERECIVEL_VARIACAO', 'tubo',    'Resina composta',    'B1', 1,  60, 1),
+    ('Materiais restauradores e preventivos', 'PERECIVEL',          'unidade', 'Ionômero de vidro',  NULL, 2, 180, 3),
+    ('Materiais restauradores e preventivos', 'PERECIVEL',          'unidade', 'Adesivo universal',  NULL, 1,  90, 2),
+    ('Materiais restauradores e preventivos', 'PERECIVEL',          'unidade', 'Verniz fluoretado',  NULL, 2, 210, 0),
+    -- Instrumentos rotatórios
+    ('Instrumentos rotatórios', 'DURAVEL', 'unidade', 'Broca diamantada esférica 1012',       NULL, 5, NULL, 12),
+    ('Instrumentos rotatórios', 'DURAVEL', 'unidade', 'Broca diamantada tronco-cônica 2135',  NULL, 5, NULL,  3),
+    ('Instrumentos rotatórios', 'DURAVEL', 'unidade', 'Broca carbide 245',                    NULL, 4, NULL,  6),
+    ('Instrumentos rotatórios', 'DURAVEL', 'unidade', 'Caneta de alta rotação',               NULL, 1, NULL,  2),
+    ('Instrumentos rotatórios', 'DURAVEL', 'unidade', 'Contra-ângulo',                        NULL, 1, NULL,  1),
+    -- Higiene e itens para o paciente
+    ('Higiene e itens para o paciente', 'DESCARTAVEL_SIMPLES', 'unidade', 'Escova dental macia',                NULL, 20, NULL, 35),
+    ('Higiene e itens para o paciente', 'DESCARTAVEL_SIMPLES', 'unidade', 'Fio dental 50 m',                    NULL, 15, NULL,  8),
+    ('Higiene e itens para o paciente', 'PERECIVEL',           'tubo',    'Creme dental com flúor 90 g',        NULL, 10,  500, 14),
+    ('Higiene e itens para o paciente', 'PERECIVEL',           'unidade', 'Enxaguante bucal sem álcool 500 ml', NULL,  6,  365,  4);
+
+-- 1. Produtos (saldo 0)
+INSERT INTO produtos (tipo_produto_codigo, categoria_id, unidade_medida_id, nome, variacao,
+                      estoque_minimo, validade, criado_em, atualizado_em)
+SELECT  s.tipo, c.id, um.id, s.nome, s.variacao,
+        s.estoque_minimo, CURRENT_DATE + s.validade_dias,
+        now() - interval '15 days', now() - interval '15 days'
+FROM seed_produtos s
+JOIN categorias      c  ON c.nome  = s.categoria
+JOIN unidades_medida um ON um.nome = s.unidade;
+
+-- 2. Saldo inicial: entrada 0 -> quantidade (o trigger fn_mov_aplicar atualiza produtos.quantidade_atual)
+INSERT INTO movimentacoes_estoque (produto_id, usuario_id, tipo, quantidade_anterior, quantidade_posterior, criado_em)
+SELECT  p.id, u.id, 'entrada', 0, s.quantidade, now() - interval '15 days'
+FROM seed_produtos s
+JOIN produtos p ON p.nome = s.nome AND p.variacao IS NOT DISTINCT FROM s.variacao
+JOIN usuarios u ON u.email = 'ana@clinica.com'
+WHERE s.quantidade > 0;
+
+-- 3. Saídas posteriores (quantidade_anterior precisa bater com o saldo atual)
+INSERT INTO movimentacoes_estoque (produto_id, usuario_id, tipo, quantidade_anterior, quantidade_posterior, criado_em)
+SELECT  p.id, u.id, 'saida', s.anterior, s.posterior, now() - s.ha
+FROM (VALUES
+    ('Gaze estéril',                NULL, 2,  0,  'joão@clinica.com', interval '10 days'),
+    ('Escova dental macia',         NULL, 35, 30, 'ana@clinica.com',  interval '6 days'),
+    ('Lidocaína 2% com epinefrina', NULL, 6,  5,  'joão@clinica.com', interval '3 days'),
+    ('Alginato',                    NULL, 3,  2,  'joão@clinica.com', interval '1 day'),
+    ('Luvas de procedimento',       'M',  12, 11, 'joão@clinica.com', interval '3 hours')
+) AS s (nome, variacao, anterior, posterior, email, ha)
+JOIN produtos p ON p.nome = s.nome AND p.variacao IS NOT DISTINCT FROM s.variacao
+JOIN usuarios u ON u.email = s.email;
 
 COMMIT;

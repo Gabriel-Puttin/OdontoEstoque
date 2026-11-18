@@ -71,6 +71,9 @@ func (r *ProductRepository) FindByID(ctx context.Context, id int64) (*models.Pro
 func (r *ProductRepository) Create(ctx context.Context, in models.ProductInput, quantidade int32, usuarioID *int64) (int64, error) {
 	var id int64
 	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		if err := lockActiveCategory(ctx, tx, in.CategoriaID); err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, queries.ProdutoInsert,
 			in.TipoProdutoCodigo, in.CategoriaID, in.UnidadeMedidaID, in.Nome, in.Variacao, in.EstoqueMinimo, in.Validade,
 		).Scan(&id); err != nil {
@@ -98,6 +101,9 @@ func (r *ProductRepository) Update(ctx context.Context, id int64, in models.Prod
 	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		var saldo int32
 		if err := tx.QueryRow(ctx, queries.ProdutoSelectSaldoForUpdate, id).Scan(&saldo); err != nil {
+			return err
+		}
+		if err := lockActiveCategory(ctx, tx, in.CategoriaID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, queries.ProdutoUpdate,
@@ -132,6 +138,17 @@ func (r *ProductRepository) Delete(ctx context.Context, id int64) error {
 		return models.ErrProductNotFound
 	}
 	return nil
+}
+
+// lockActiveCategory executa queries/categorias/lock_ativa.sql dentro da transação.
+// Categoria inexistente ou excluída vira erro de validação em categoria_id.
+func lockActiveCategory(ctx context.Context, tx pgx.Tx, categoriaID int16) error {
+	var id int16
+	err := tx.QueryRow(ctx, queries.CategoriaLockAtiva, categoriaID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return &models.ValidationError{Fields: map[string]string{"categoria_id": "não existe"}}
+	}
+	return err
 }
 
 func scanProduct(row pgx.Row) (*models.Product, error) {

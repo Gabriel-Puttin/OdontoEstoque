@@ -362,7 +362,9 @@ Erros: `404` categoria não encontrada · `409` nome já existe · `422` nome in
 
 Resposta `204` sem corpo.
 
-Erros: `404` categoria não encontrada · `409` categoria com produtos vinculados (inclusive produtos já excluídos logicamente, que continuam referenciando a categoria):
+Exclusão lógica (`excluido_em`): a categoria some das listagens e o nome pode ser reutilizado. Só é permitida se a categoria não tiver produtos ativos; produtos já excluídos não impedem.
+
+Erros: `404` categoria não encontrada (ou já excluída) · `409` categoria com produtos ativos:
 
 ```json
 { "error": "a categoria possui produtos vinculados e não pode ser excluída" }

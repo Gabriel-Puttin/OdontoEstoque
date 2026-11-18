@@ -96,14 +96,16 @@ func (r *CategoryRepository) Update(ctx context.Context, id int16, nome string) 
 	return c, nil
 }
 
-// Delete executa queries/categorias/delete.sql.
+// Delete executa queries/categorias/delete.sql (exclusão lógica).
+// Sem linha -> ErrCategoryNotFound; com produtos ativos -> ErrCategoryHasProducts.
 func (r *CategoryRepository) Delete(ctx context.Context, id int16) error {
-	tag, err := r.db.Exec(ctx, queries.CategoriaDelete, id)
+	var temProdutos bool
+	err := r.db.QueryRow(ctx, queries.CategoriaDelete, id).Scan(&temProdutos)
 	if err != nil {
 		return fmt.Errorf("category repository: delete: %w", translateCategoryErr(err))
 	}
-	if tag.RowsAffected() == 0 {
-		return models.ErrCategoryNotFound
+	if temProdutos {
+		return models.ErrCategoryHasProducts
 	}
 	return nil
 }
@@ -122,13 +124,8 @@ func translateCategoryErr(err error) error {
 		return models.ErrCategoryNotFound
 	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		switch {
-		case pgErr.Code == pgUniqueViolation && pgErr.ConstraintName == "uq_categorias_nome":
-			return models.ErrCategoryNameExists
-		case pgErr.Code == pgForeignKeyViolation:
-			return models.ErrCategoryHasProducts
-		}
+	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation && pgErr.ConstraintName == "uq_categorias_nome" {
+		return models.ErrCategoryNameExists
 	}
 	return err
 }
