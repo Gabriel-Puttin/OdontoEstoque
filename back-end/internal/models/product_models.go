@@ -29,7 +29,7 @@ type Product struct {
 
 // ProductRequest é o corpo do POST e do PUT de produtos.
 //   - Quantidade no POST: saldo inicial (padrão 0), registrado como movimentação de 'entrada'.
-//   - Quantidade no PUT: novo saldo; se mudar, vira uma movimentação de 'ajuste'. Omitida = mantém.
+//   - Quantidade no PUT: novo saldo; se mudar, vira uma movimentação de 'entrada' (subiu) ou 'saida' (desceu). Omitida = mantém.
 //   - UsuarioID: responsável pela movimentação (opcional enquanto não há autenticação).
 type ProductRequest struct {
 	TipoProdutoCodigo string  `json:"tipo_produto_codigo"`

@@ -119,6 +119,7 @@ Erros de validação trazem também o detalhe por campo:
 | `DELETE` | `/api/products/{id}` | Excluir produto (lógico) |
 | `GET` | `/api/languages` | Listar idiomas |
 | `GET` | `/api/units` | Listar unidades de medida |
+| `GET` | `/api/movements` | Histórico de movimentações |
 
 ---
 
@@ -374,7 +375,7 @@ Erros: `404` categoria não encontrada · `409` categoria com produtos vinculado
 O saldo (`quantidade_atual`) nunca é gravado direto no produto: toda mudança gera um registro em `movimentacoes_estoque`, e o trigger do banco atualiza o saldo.
 
 - No cadastro, `quantidade` vira uma movimentação de **entrada** `0 → quantidade`.
-- Na edição, se `quantidade` for diferente do saldo atual, vira uma movimentação de **ajuste** `saldo → quantidade`. Sem `quantidade`, o saldo não muda.
+- Na edição, se `quantidade` for diferente do saldo atual, vira uma movimentação `saldo → quantidade`: **entrada** se o saldo sobe, **saída** se desce. Sem `quantidade`, o saldo não muda.
 
 Tipos de produto (`tipo_produto_codigo`):
 
@@ -535,9 +536,9 @@ Erros:
 
 #### `PUT /api/products/{id}` — Editar produto
 
-Mesmos campos do cadastro (substitui todos os dados cadastrais). `quantidade` é opcional: se informada e diferente do saldo atual, gera um ajuste.
+Mesmos campos do cadastro (substitui todos os dados cadastrais). `quantidade` é opcional: se informada e diferente do saldo atual, gera uma entrada ou uma saída.
 
-Requisição (ajusta o saldo de 8 para 2 e o mínimo para 5):
+Requisição (retira 6 unidades — saída 8 → 2 — e muda o mínimo para 5):
 
 ```json
 {
@@ -641,4 +642,71 @@ Resposta `200`:
     "criado_em": "2026-09-01T08:00:00-03:00"
   }
 ]
+```
+
+---
+
+### Histórico de movimentações
+
+#### `GET /api/movements` — Listar movimentações
+
+Histórico da tela Histórico, da mais recente para a mais antiga. Junta `movimentacoes_estoque` com `produtos`, `unidades_medida` e `usuarios`.
+
+| Parâmetro (query string) | Obrigatório | Descrição |
+| :--- | :--- | :--- |
+| `tipo` | Não | `entrada`, `saida` ou `ajuste`. Vazio ou `todas` = todos os tipos. A API só gera `entrada` e `saida`; `ajuste` existe no banco para registros antigos |
+| `limite` | Não | Quantidade de registros, de 1 a 500. Padrão `100` |
+
+Exemplos: `/api/movements` · `/api/movements?tipo=saida` · `/api/movements?tipo=entrada&limite=20`
+
+Resposta `200`:
+
+```json
+[
+  {
+    "id": 88,
+    "tipo": "saida",
+    "produto_id": 517,
+    "produto": "Ionômero de vidro A3",
+    "produto_excluido": false,
+    "quantidade_anterior": 8,
+    "quantidade_posterior": 7,
+    "delta": -1,
+    "unidade_medida": "frasco",
+    "usuario_id": 42,
+    "usuario": "Marina Costa",
+    "criado_em": "2026-10-14T09:40:12.551302-03:00"
+  },
+  {
+    "id": 81,
+    "tipo": "entrada",
+    "produto_id": 522,
+    "produto": "Sugador descartável",
+    "produto_excluido": true,
+    "quantidade_anterior": 0,
+    "quantidade_posterior": 3,
+    "delta": 3,
+    "unidade_medida": "saco",
+    "usuario_id": null,
+    "usuario": null,
+    "criado_em": "2026-10-11T15:03:37.118400-03:00"
+  }
+]
+```
+
+| Campo | Descrição |
+| :--- | :--- |
+| `produto` | Nome de exibição (`nome` + `variacao`) |
+| `produto_excluido` | `true` se o produto foi excluído depois; a movimentação continua no histórico |
+| `delta` | `quantidade_posterior - quantidade_anterior` (negativo = retirada) |
+| `unidade_medida` | Unidade no momento da movimentação (não muda se o produto trocar de unidade depois) |
+| `usuario_id` / `usuario` | Quem fez a alteração; `null` se não informado ou se o usuário foi removido. Para exibir "Você", compare `usuario_id` com o `id` do login |
+
+Erros: `422` `tipo` ou `limite` inválidos:
+
+```json
+{
+  "error": "dados inválidos",
+  "fields": { "tipo": "use entrada, saida ou ajuste" }
+}
 ```

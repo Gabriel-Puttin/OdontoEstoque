@@ -92,7 +92,8 @@ func (r *ProductRepository) Create(ctx context.Context, in models.ProductInput, 
 // Update, numa transação:
 //  1. produtos/select_saldo_for_update.sql (trava a linha e lê o saldo)
 //  2. produtos/update.sql (dados cadastrais)
-//  3. movimentacoes/insert.sql como 'ajuste' saldo -> novaQuantidade, se informada e diferente
+//  3. movimentacoes/insert.sql saldo -> novaQuantidade, se informada e diferente:
+//     'entrada' quando o saldo sobe, 'saida' quando desce
 func (r *ProductRepository) Update(ctx context.Context, id int64, in models.ProductInput, novaQuantidade *int32, usuarioID *int64) error {
 	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		var saldo int32
@@ -105,7 +106,11 @@ func (r *ProductRepository) Update(ctx context.Context, id int64, in models.Prod
 			return err
 		}
 		if novaQuantidade != nil && *novaQuantidade != saldo {
-			if _, err := tx.Exec(ctx, queries.MovimentacaoInsert, id, usuarioID, "ajuste", saldo, *novaQuantidade); err != nil {
+			tipo := "entrada"
+			if *novaQuantidade < saldo {
+				tipo = "saida"
+			}
+			if _, err := tx.Exec(ctx, queries.MovimentacaoInsert, id, usuarioID, tipo, saldo, *novaQuantidade); err != nil {
 				return err
 			}
 		}

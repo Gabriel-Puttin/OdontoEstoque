@@ -70,3 +70,6 @@ var IdiomaSelectAll string
 
 //go:embed unidades_medida/select_all.sql
 var UnidadeMedidaSelectAll string
+
+//go:embed movimentacoes/select_all.sql
+var MovimentacaoSelectAll string

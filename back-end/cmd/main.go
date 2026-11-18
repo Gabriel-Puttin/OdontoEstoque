@@ -42,6 +42,7 @@ func main() {
 	productRepo := repositories.NewProductRepository(db)
 	languageRepo := repositories.NewLanguageRepository(db)
 	unitRepo := repositories.NewUnitRepository(db)
+	movementRepo := repositories.NewMovementRepository(db)
 
 	// Services (núcleo / regras de negócio)
 	userService := services.NewUserService(userRepo)
@@ -49,6 +50,7 @@ func main() {
 	productService := services.NewProductService(productRepo)
 	languageService := services.NewLanguageService(languageRepo)
 	unitService := services.NewUnitService(unitRepo)
+	movementService := services.NewMovementService(movementRepo)
 
 	// Handlers (adaptadores de entrada)
 	userHandler := handlers.NewUserHandler(userService, appLogger)
@@ -56,6 +58,7 @@ func main() {
 	productHandler := handlers.NewProductHandler(productService, appLogger)
 	languageHandler := handlers.NewLanguageHandler(languageService, appLogger)
 	unitHandler := handlers.NewUnitHandler(unitService, appLogger)
+	movementHandler := handlers.NewMovementHandler(movementService, appLogger)
 
 	// Roteador
 	mux := http.NewServeMux()
@@ -83,6 +86,9 @@ func main() {
 	// Idiomas e unidades de medida (somente leitura)
 	mux.HandleFunc("GET /api/languages", languageHandler.List)
 	mux.HandleFunc("GET /api/units", unitHandler.List)
+
+	// Histórico de movimentações (somente leitura)
+	mux.HandleFunc("GET /api/movements", movementHandler.List)
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 	appLogger.Info("servidor HTTP iniciado", "addr", addr)
